@@ -1,0 +1,44 @@
+{
+  "folders": [
+    {
+      "name": "🌟 Mercedes-Benz Hackathon (Root)",
+      "path": "."
+    },
+    {
+      "name": "📓 Notebooks",
+      "path": "notebooks"
+    },
+    {
+      "name": "🐍 Scripts",
+      "path": "scripts"
+    },
+    {
+      "name": "📄 Informes & Reports",
+      "path": "reports"
+    },
+    {
+      "name": "📊 Visualizaciones (Figures)",
+      "path": "figures"
+    },
+    {
+      "name": "💾 Datos (CSVs & JSONs)",
+      "path": "data"
+    }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "C:\\Users\\javic\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "python.analysis.autoImportCompletions": true,
+    "files.autoSave": "afterDelay",
+    "editor.formatOnSave": true,
+    "editor.renderWhitespace": "selection",
+    "workbench.editor.enablePreview": false,
+    "workbench.colorTheme": "Default Dark Modern"
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-toolsai.jupyter",
+      "yzhang.markdown-all-in-one"
+    ]
+  }
+}
