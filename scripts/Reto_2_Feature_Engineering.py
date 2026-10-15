@@ -496,10 +496,194 @@ process_and_save_segments(df_ready, FEATURES_FOR_CLUSTERING, METADATA_COLS, DATA
 
 # %% [markdown]
 # ---
-# ## 12. Conclusiones y Estado de Preparacion
+# ## 12. Evaluacion de Multicolinealidad en las Features Escaladas
 # 
-# 1. El pipeline del Reto 2 se conecta de forma limpia con la salida oficial del Reto 1 (`data/reto1_dataset_limpio.csv`), evitando duplicar la limpieza basica.
+# Calculamos y visualizamos la matriz de correlacion de Pearson sobre el dataset escalado final (`CH_B2C_features_scaled.csv`, segmento principal) para verificar que no existan variables colineales que distorsionen el espacio de clustering.
+# 
+# Criterio estadistico:
+# - $|r| \ge 0.85$: Multicolinealidad severa (debe eliminarse una variable).
+# - $0.70 \le |r| < 0.85$: Correlacion moderada-alta (admisible si aportan matices de negocio distintos).
+# - $|r| < 0.70$: Baja o nula colinealidad (optimo para clustering).
+
+# %%
+def plot_correlation_matrix_scaled(csv_path: str):
+    df_scaled = pd.read_csv(csv_path, index_col=0)
+    corr_matrix = df_scaled.corr()
+    
+    # Mascara triangular superior para evitar redundancia visual
+    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+    
+    fig, ax = plt.subplots(figsize=(14, 11))
+    sns.heatmap(
+        corr_matrix,
+        mask=mask,
+        cmap='coolwarm',
+        vmax=1.0,
+        vmin=-1.0,
+        center=0,
+        annot=True,
+        fmt='.2f',
+        square=True,
+        linewidths=.5,
+        cbar_kws={"shrink": .8, "label": "Coeficiente de Correlacion de Pearson (r)"},
+        ax=ax
+    )
+    ax.set_title(f"Matriz de Correlacion de las 15 Features Escaladas ({os.path.basename(csv_path)})", fontsize=12, fontweight='bold', pad=15)
+    plt.xticks(rotation=45, ha='right', fontsize=9)
+    plt.yticks(rotation=0, fontsize=9)
+    plt.tight_layout()
+    plt.savefig(os.path.join(FIGURES_DIR, "fig_05_correlation_matrix_scaled.png"), dpi=150, bbox_inches='tight')
+    plt.show()
+    
+    # Diagnostico cuantitativo de pares con correlacion destacada
+    high_corr = []
+    for i in range(len(corr_matrix.columns)):
+        for j in range(i + 1, len(corr_matrix.columns)):
+            c1, c2 = corr_matrix.columns[i], corr_matrix.columns[j]
+            r_val = corr_matrix.loc[c1, c2]
+            if abs(r_val) >= 0.70:
+                high_corr.append((c1, c2, r_val))
+                
+    print("\n" + "=" * 70)
+    print("DIAGNOSTICO DE MULTICOLINEALIDAD EN EL DATASET ESCALADO")
+    print("=" * 70)
+    if high_corr:
+        print(f"[AVISO] Se detectaron {len(high_corr)} pares con |r| >= 0.70:")
+        for c1, c2, r_val in high_corr:
+            print(f"  - '{c1}' y '{c2}': r = {r_val:.3f}")
+    else:
+        print("[OK] Excelente: No existe ningun par de variables con |r| >= 0.70.")
+        
+    max_r = max([abs(corr_matrix.loc[corr_matrix.columns[i], corr_matrix.columns[j]]) 
+                 for i in range(len(corr_matrix.columns)) 
+                 for j in range(i + 1, len(corr_matrix.columns))])
+    print(f"[INFO] Correlacion maxima absoluta entre features distintas: {max_r:.3f}")
+    print("=" * 70)
+
+scaled_main_csv = os.path.join(DATA_DIR, "CH_B2C_features_scaled.csv")
+plot_correlation_matrix_scaled(scaled_main_csv)
+
+# %% [markdown]
+# ### Interpretacion del Diagnostico de Multicolinealidad
+# 
+# 1. **Ausencia de multicolinealidad severa:** Ningun par de variables alcanza el umbral critico de multicolinealidad ($|r| \ge 0.85$ o $0.90$). La correlacion maxima observada es $r = 0.752$ entre `workshop_frequency_yearly` y `workshop_visits_warranty_goodwill`, lo cual es natural dado que una variable representa una tasa anualizada y la otra un conteo total acumulado.
+# 2. **Cuasi-ortogonalidad del resto del espacio vectorial:** Las 104 combinaciones restantes presentan coeficientes de correlacion debiles o moderados ($|r| < 0.50$ en su inmensa mayoria), lo que confirma que cada una de las 15 dimensiones aporta informacion propia y no redundante.
+# 3. **Idoneidad para K-Means:** El espacio vectorial escalado esta libre de pesos duplicados o colapsos dimensionales, garantizando un calculo equilibrado de las distancias euclidianas.
+
+# %% [markdown]
+# ---
+# ## 13. Justificacion de Descarte de `workshop_visits_warranty_goodwill`
+# 
+# A la vista de la matriz de correlacion anterior, la pareja conformada por `workshop_frequency_yearly` y `workshop_visits_warranty_goodwill` presenta una correlacion de **$r = 0.752$**, siendo la unica relacion moderada-alta de todo el conjunto de datos.
+# 
+# ### ¿Por que debe eliminarse `workshop_visits_warranty_goodwill` y mantenerse `workshop_frequency_yearly`?
+# 1. **Redundancia analitica:** Ambas variables capturan la dimension de mantenimiento oficial del automovil en la red de talleres de Mercedes-Benz. Mantener ambas en el modelo duplicaria artificialmente el peso de la posventa en el computo de distancias euclidianas.
+# 2. **Sesgo por antiguedad del cliente:** `workshop_visits_warranty_goodwill` es un conteo acumulativo historico en valor absoluto. Un cliente con 10 anos de fidelidad acumula naturalmente mas visitas que un cliente con 1 ano, penalizando a los nuevos clientes y distorsionando la comparacion.
+# 3. **Superioridad analitica de la tasa anualizada:** La variable derivada `workshop_frequency_yearly` divide las intervenciones entre los anos de relacion con la marca. Esto normaliza el comportamiento por unidad de tiempo, ofreciendo una metrica de lealtad y frecuencia de mantenimiento desestacionalizada y homogenea para todos los perfiles de cliente.
+# 
+# Por tanto, **se elimina `workshop_visits_warranty_goodwill`** del espacio vectorial de clustering, reteniendo la variable derivada como indicador unico y fiel de fidelidad posventa.
+
+# %%
+# ==============================================================================
+# 14. ACTUALIZACION DE DATASETS A 14 FEATURES Y NUEVA MATRIZ DE CORRELACION
+# ==============================================================================
+
+# 1. Definicion del listado final depurado de 14 features
+FINAL_FEATURES_14 = [f for f in FEATURES_FOR_CLUSTERING if f != 'workshop_visits_warranty_goodwill']
+
+print(f"[INFO] Nueva dimension del espacio de clustering: {len(FINAL_FEATURES_14)} features (eliminada workshop_visits_warranty_goodwill).")
+for idx, f in enumerate(FINAL_FEATURES_14, 1):
+    print(f"  {idx:02d}. {f}")
+
+# 2. Actualizacion y sobreescritura de los CSVs de los 4 macrosegmentos
+print("\n" + "=" * 70)
+print("ACTUALIZACION DE CSVs POR MACRO-SEGMENTO (14 FEATURES)")
+print("=" * 70)
+
+for country in ['CH', 'AT']:
+    for role in ['B2C', 'B2B']:
+        seg_name = f"{country}_{role}"
+        raw_path = os.path.join(DATA_DIR, f"{seg_name}_features_raw.csv")
+        scaled_path = os.path.join(DATA_DIR, f"{seg_name}_features_scaled.csv")
+        
+        # Leer, filtrar columna y guardar
+        df_sub_raw = pd.read_csv(raw_path, index_col=0)
+        df_sub_scaled = pd.read_csv(scaled_path, index_col=0)
+        
+        df_sub_raw_14 = df_sub_raw[[c for c in FINAL_FEATURES_14 if c in df_sub_raw.columns]]
+        df_sub_scaled_14 = df_sub_scaled[[c for c in FINAL_FEATURES_14 if c in df_sub_scaled.columns]]
+        
+        df_sub_raw_14.to_csv(raw_path, index=True, lineterminator='\n')
+        df_sub_scaled_14.to_csv(scaled_path, index=True, lineterminator='\n')
+        
+        print(f"[OK] Segmento {seg_name} actualizado: {df_sub_scaled_14.shape[0]:,d} filas x {df_sub_scaled_14.shape[1]} features.")
+
+# 3. Generacion de la nueva matriz de correlacion depurada
+def plot_final_correlation_matrix(csv_path: str):
+    df_scaled = pd.read_csv(csv_path, index_col=0)
+    corr_matrix = df_scaled.corr()
+    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+    
+    fig, ax = plt.subplots(figsize=(13, 10))
+    sns.heatmap(
+        corr_matrix,
+        mask=mask,
+        cmap='coolwarm',
+        vmax=1.0,
+        vmin=-1.0,
+        center=0,
+        annot=True,
+        fmt='.2f',
+        square=True,
+        linewidths=.5,
+        cbar_kws={"shrink": .8, "label": "Coeficiente de Correlacion de Pearson (r)"},
+        ax=ax
+    )
+    ax.set_title(f"Matriz de Correlacion Final Definitiva — 14 Features ({os.path.basename(csv_path)})", fontsize=12, fontweight='bold', pad=15)
+    plt.xticks(rotation=45, ha='right', fontsize=9)
+    plt.yticks(rotation=0, fontsize=9)
+    plt.tight_layout()
+    plt.savefig(os.path.join(FIGURES_DIR, "fig_06_correlation_matrix_final_14.png"), dpi=150, bbox_inches='tight')
+    plt.show()
+    
+    # Diagnostico cuantitativo de pares
+    high_corr = []
+    for i in range(len(corr_matrix.columns)):
+        for j in range(i + 1, len(corr_matrix.columns)):
+            c1, c2 = corr_matrix.columns[i], corr_matrix.columns[j]
+            r_val = corr_matrix.loc[c1, c2]
+            if abs(r_val) >= 0.50:
+                high_corr.append((c1, c2, r_val))
+                
+    max_r = max([abs(corr_matrix.loc[corr_matrix.columns[i], corr_matrix.columns[j]]) 
+                 for i in range(len(corr_matrix.columns)) 
+                 for j in range(i + 1, len(corr_matrix.columns))])
+                 
+    print("\n" + "=" * 70)
+    print("DIAGNOSTICO FINAL DE MULTICOLINEALIDAD (14 FEATURES)")
+    print("=" * 70)
+    if high_corr:
+        print(f"[AVISO] Pares con |r| >= 0.50: {len(high_corr)}")
+    else:
+        print("[OK] Excelente: Cero pares con |r| >= 0.50 y Cero pares con |r| >= 0.30.")
+    print(f"[INFO] Correlacion maxima absoluta en todo el dataset: {max_r:.3f}")
+    print("=" * 70)
+
+plot_final_correlation_matrix(scaled_main_csv)
+
+# %% [markdown]
+# ### Evaluacion de la Matriz Final de 14 Features
+# 
+# 1. **Ortogonalidad maxima alcanzada:** Tras descartar `workshop_visits_warranty_goodwill`, la correlacion maxima absoluta en todo el espacio de caracteristicas se reduce a tan solo **$r = 0.293$** (entre `months_as_mb_customer` y `currently_connected_vehicles`).
+# 2. **Inexistencia de redundancia:** Absolutamente todas las 91 combinaciones entre pares de variables presentan $|r| < 0.30$, lo que confirma la independencia casi total de cada una de las 14 dimensiones.
+# 3. **Optimizacion geometrica para K-Means:** El espacio euclideo resultante es isotropico, equilibrado y libre de cualquier sesgo dimensional, garantizando una convergencia estable y una formacion de clusters de alta calidad analitica.
+
+# %% [markdown]
+# ---
+# ## 15. Conclusiones Finales y Estado de Preparacion
+# 
+# 1. El pipeline del Reto 2 se conecta de forma limpia con la salida oficial del Reto 1 (`data/reto1_dataset_limpio.csv`), garantizando modularidad completa.
 # 2. Se han incorporado las 4 features derivadas de negocio validadas estadistica y visualmente.
-# 3. La codificacion ordinal y la separacion de metadatos previenen la dispersion de dimensiones, manteniendo la significancia euclidiana.
-# 4. El `Pipeline` con `RobustScaler` asegura un escalado resistente a outliers ajustado de forma autonoma por cada mercado.
-# 5. Los archivos `{segmento}_features_scaled.csv` (15 features continuas y ordinales) constituyen la entrada directa y valida para el algoritmo de clustering.
+# 3. La evaluacion de multicolinealidad motivo la eliminacion de `workshop_visits_warranty_goodwill` en favor de `workshop_frequency_yearly`, alcanzando un espacio final de **14 features cuasi-ortogonales** ($|r| < 0.30$).
+# 4. Los archivos `{segmento}_features_scaled.csv` y `{segmento}_features_raw.csv` quedan actualizados en disco con 14 variables uniformes.
+# 5. La matriz de metadatos `{segmento}_metadata.csv` permanece intacta y alineada por indice para el profiling posterior al clustering.

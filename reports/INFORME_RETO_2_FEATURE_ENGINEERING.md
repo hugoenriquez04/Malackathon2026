@@ -125,15 +125,16 @@ A continuacion se presenta la matriz completa de las 15 variables seleccionadas 
 | 4 | `months_as_mb_customer` | Continua (meses) | Variable original limpia | Mide la antiguedad y lealtad historica de la relacion comercial con la marca Mercedes-Benz. |
 | 5 | `currently_connected_vehicles` | Discreta (conteo) | Variable original limpia | Identifica clientes multi-vehiculo y pequenos titulares de flotas familiares o profesionales. |
 | 6 | `workshop_frequency_yearly` | Continua (tasa) | `visits / ((months / 12) + 0.1)` | Frecuencia anualizada de mantenimiento oficial; diferencia clientes leales a la red de desertores posventa. |
-| 7 | `workshop_visits_warranty_goodwill` | Discreta (conteo) | Variable original limpia | Registra el volumen acumulado de intervenciones cubiertas por garantia o atenciones comerciales de cortesia. |
-| 8 | `marketing_receptivity_score` | Ordinal (0 a 3) | Suma de 3 consentimientos | Grado de apertura comercial; permite orientar campanas directas por CRM solo a clientes receptivos. |
-| 9 | `purchasing_power_per_inhabitant_eur` | Continua (euros) | Variable original limpia | Poder adquisitivo medio del area de residencia; proxy clave para capacidad de pago y gamas premium. |
-| 10 | `population` | Continua (hab.) | Variable original limpia | Contexto geografico; diferencia entornos de alta densidad urbana de areas suburbanas o rurales. |
-| 11 | `has_telemetry_active` | Binaria (0 o 1) | Bandera por no nulidad telem. | Distingue al usuario tecnologico conectado a la app del cliente tradicional sin servicios activos. |
-| 12 | `trip_distance_median` | Continua (km) | Mediana de trayectos | Habito de desplazamiento habitual: trayectos cortos de ciudad frente a trayectos largos interurbanos. |
-| 13 | `speed_median` | Continua (km/h) | Mediana de velocidad | Estilo de conduccion y via principal habitual (trafico urbano lento vs conduccion fluida en autopista). |
-| 14 | `fuel_consumption_average` | Continua (l/100km o kWh) | Promedio de consumo | Huella de eficiencia y dinamica de uso segun el tamano del vehiculo y agresividad en la conduccion. |
-| 15 | `operating_hours_total` | Continua (horas) | Horas acumuladas motor | Intensidad global de rodaje y desgaste acumulado a lo largo de toda la vida del automovil. |
+| 7 | `marketing_receptivity_score` | Ordinal (0 a 3) | Suma de 3 consentimientos | Grado de apertura comercial; permite orientar campanas directas por CRM solo a clientes receptivos. |
+| 8 | `purchasing_power_per_inhabitant_eur` | Continua (euros) | Variable original limpia | Poder adquisitivo medio del area de residencia; proxy clave para capacidad de pago y gamas premium. |
+| 9 | `population` | Continua (hab.) | Variable original limpia | Contexto geografico; diferencia entornos de alta densidad urbana de areas suburbanas o rurales. |
+| 10 | `has_telemetry_active` | Binaria (0 o 1) | Bandera por no nulidad telem. | Distingue al usuario tecnologico conectado a la app del cliente tradicional sin servicios activos. |
+| 11 | `trip_distance_median` | Continua (km) | Mediana de trayectos | Habito de desplazamiento habitual: trayectos cortos de ciudad frente a trayectos largos interurbanos. |
+| 12 | `speed_median` | Continua (km/h) | Mediana de velocidad | Estilo de conduccion y via principal habitual (trafico urbano lento vs conduccion fluida en autopista). |
+| 13 | `fuel_consumption_average` | Continua (l/100km o kWh) | Promedio de consumo | Huella de eficiencia y dinamica de uso segun el tamano del vehiculo y agresividad en la conduccion. |
+| 14 | `operating_hours_total` | Continua (horas) | Horas acumuladas motor | Intensidad global de rodaje y desgaste acumulado a lo largo de toda la vida del automovil. |
+
+*(Nota de depuracion por multicolinealidad: `workshop_visits_warranty_goodwill` se descarto tras la matriz de correlacion al presentar r = 0.752 con `workshop_frequency_yearly`. Se priorizo la tasa anualizada por estar normalizada en el tiempo. Tras este descarte, la correlacion maxima en todo el dataset se redujo a r = 0.293).*
 
 ---
 
@@ -141,9 +142,9 @@ A continuacion se presenta la matriz completa de las 15 variables seleccionadas 
 
 La ejecucion completa del cuaderno y script genera la siguiente infraestructura de datos en `data/`:
 - **Archivos de clustering escalados (`_features_scaled.csv`):**
-  - `CH_B2C_features_scaled.csv` (189.508 filas x 15 columnas)
-  - `AT_B2C_features_scaled.csv` (107.545 filas x 15 columnas)
-  - `CH_B2B_features_scaled.csv` (3.268 filas x 15 columnas)
-  - `AT_B2B_features_scaled.csv` (2.529 filas x 15 columnas)
-- **Archivos en escala real (`_features_raw.csv`):** Mismas 15 variables en magnitudes originales (anos, km/h, euros) para la interpretacion de centroides.
+  - `CH_B2C_features_scaled.csv` (189.508 filas x 14 columnas)
+  - `AT_B2C_features_scaled.csv` (107.545 filas x 14 columnas)
+  - `CH_B2B_features_scaled.csv` (3.268 filas x 14 columnas)
+  - `AT_B2B_features_scaled.csv` (2.529 filas x 14 columnas)
+- **Archivos en escala real (`_features_raw.csv`):** Mismas 14 variables en magnitudes originales (anos, km/h, euros) para la interpretacion de centroides.
 - **Archivos de metadatos (`_metadata.csv`):** Columnas cualitativas (`model_series`, `model_class`, `engine_concept`, `finance_leasing_status`, etc.) alineadas exactamente por indice de fila para la caracterizacion posterior de los clústeres.
