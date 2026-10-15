@@ -238,11 +238,14 @@ def impute_telemetry_features(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame
 
 df_imputed = impute_telemetry_features(df_encoded, TELEMETRY_COLS)
 
-# Imputar posibles nulos residuales en variables socioeconomicas con mediana del pais
+# Imputar posibles nulos residuales en variables socioeconomicas con mediana agrupada por pais y modelo
 for col in ['purchasing_power_per_inhabitant_eur', 'population']:
     if col in df_imputed.columns:
-        df_imputed[col] = df_imputed[col].fillna(df_imputed.groupby('country_code')[col].transform('median'))
+        df_imputed[col] = df_imputed[col].fillna(df_imputed.groupby(['country_code', 'model_class'])[col].transform('median'))
         df_imputed[col] = df_imputed[col].fillna(df_imputed[col].median())
+
+if 'months_as_mb_customer' in df_imputed.columns:
+    df_imputed['months_as_mb_customer'] = df_imputed['months_as_mb_customer'].fillna(df_imputed['months_as_mb_customer'].median())
 
 # %% [markdown]
 # ---
@@ -352,9 +355,9 @@ def process_and_save_segments(df_data: pd.DataFrame, features: List[str], meta_c
             scaled_path = os.path.join(output_dir, f"{seg_name}_features_scaled.csv")
             meta_path = os.path.join(output_dir, f"{seg_name}_metadata.csv")
             
-            sub_raw.to_csv(raw_path, index=True)
-            sub_scaled.to_csv(scaled_path, index=True)
-            sub_meta.to_csv(meta_path, index=True)
+            sub_raw.to_csv(raw_path, index=True, lineterminator='\n')
+            sub_scaled.to_csv(scaled_path, index=True, lineterminator='\n')
+            sub_meta.to_csv(meta_path, index=True, lineterminator='\n')
             
             print(f"[OK] Segmento {seg_name}: {len(sub_raw):,d} filas.")
             print(f"     Raw:    {raw_path}")
