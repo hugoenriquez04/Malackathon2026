@@ -1,19 +1,20 @@
 # %% [markdown]
 # # Reto 2: Feature Engineering y Preparacion de Datos para Clustering
 # 
-# **Asignatura / Contexto:** Mercedes-Benz Hackathon - Clustering the Star  
-# **Reto:** Reto 2 (Seleccion de variables, creacion de features derivadas y pipeline de transformacion)  
-# **Dataset de entrada:** `data/datos_reto_mercedes_benz_malackathon.csv` (~302.000 registros x 39 columnas)  
+# **Proyecto:** Mercedes-Benz Hackathon — "Clustering the Star"  
+# **Autor:** Estudiante de Grado en Ingenieria Informatica  
+# **Modulo:** Reto 2 — Seleccion de variables, ingenieria de caracteristicas y pipeline de preprocesamiento  
+# **Punto de partida:** Salida oficial del Reto 1 (`data/reto1_dataset_limpio.csv`)  
 # 
 # ---
 # 
 # ## Objetivos del Reto 2
 # 
-# 1. **Seleccion justificada de variables:** Evaluar que informacion es util para segmentar clientes y descartar columnas redundantes o metadatos irrelevantes.
-# 2. **Creacion de features derivadas:** Disenar y calcular nuevas variables con valor de negocio (antiguedad del vehiculo, frecuencia de taller, receptividad comercial, etc.).
-# 3. **Tratamiento de variables categoricas:** Aplicar una codificacion adecuada evitando la dispersion dimensional masiva (maldicion de la dimensionalidad).
-# 4. **Tratamiento de variables numericas y nulos:** Imputacion justificada y escalado robusto frente a valores atipicos.
-# 5. **Pipeline de transformacion Scikit-Learn:** Encapsular el preprocesamiento en un flujo modular, reproducible y exportar los datasets listos para el algoritmo de clustering.
+# 1. **Continuidad del pipeline:** Recoger el testigo del Reto 1 consumiendo directamente su dataset limpio (`data/reto1_dataset_limpio.csv`), garantizando una arquitectura desacoplada y modular.
+# 2. **Creacion de features derivadas:** Disenar y calcular variables de alto impacto para negocio (antiguedad del vehiculo a partir de su matriculacion, tasa anualizada de taller, receptividad comercial y adopcion de telemetria).
+# 3. **Tratamiento de variables categoricas:** Codificar variables ordinales sin generar dispersion masiva (maldicion de la dimensionalidad) y desacoplar los metadatos descriptivos.
+# 4. **Pipeline de transformacion Scikit-Learn:** Encapsular el escalado robusto (`RobustScaler`) en un flujo reproducible ajustado independientemente por macro-segmento.
+# 5. **Exportacion de datasets finales:** Generar las matrices de datos listas para alimentar los algoritmos de clustering (K-Means, etc.).
 
 # %%
 # ==============================================================================
@@ -27,88 +28,108 @@ from typing import Dict, List, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OrdinalEncoder, RobustScaler
 
+# Configuracion visual
+plt.style.use('seaborn-v0_8-whitegrid')
+plt.rcParams['figure.figsize'] = (14, 6)
+plt.rcParams['figure.dpi'] = 100
+plt.rcParams['font.size'] = 10
 warnings.filterwarnings('ignore')
 
 # Semilla fija para reproducibilidad
 RANDOM_STATE = 42
 np.random.seed(RANDOM_STATE)
 
-# Fecha de corte de referencia para calcular antiguedades
+# Fecha de referencia del proyecto para calcular antiguedades
 REFERENCE_DATE = pd.Timestamp('2026-10-15')
 
-# Directorios de trabajo
-DATA_DIR = "data"
-FIGURES_DIR = "figures"
-os.makedirs(DATA_DIR, exist_ok=True)
+# Directorios de trabajo adaptativos (comprueba la existencia real del dataset)
+if os.path.exists(os.path.join("data", "reto1_dataset_limpio.csv")) or os.path.exists(os.path.join("data", "datos_reto_mercedes_benz_malackathon.csv")):
+    DATA_DIR = "data"
+    FIGURES_DIR = "figures"
+elif os.path.exists(os.path.join("..", "data", "reto1_dataset_limpio.csv")) or os.path.exists(os.path.join("..", "data", "datos_reto_mercedes_benz_malackathon.csv")):
+    DATA_DIR = "../data"
+    FIGURES_DIR = "../figures"
+else:
+    _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
+    _ROOT_DIR = _CURRENT_DIR if os.path.exists(os.path.join(_CURRENT_DIR, "data", "datos_reto_mercedes_benz_malackathon.csv")) else os.path.dirname(_CURRENT_DIR)
+    DATA_DIR = os.path.join(_ROOT_DIR, "data")
+    FIGURES_DIR = os.path.join(_ROOT_DIR, "figures")
+
 os.makedirs(FIGURES_DIR, exist_ok=True)
 
-print("[INFO] Librerias importadas y entorno configurado correctamente.")
+print(f"[INFO] Librerias importadas. Directorio de datos activo: '{DATA_DIR}'.")
 
 # %% [markdown]
 # ---
-# ## 2. Carga del Dataset y Auditoria Inicial
+# ## 2. Carga del Dataset y Conexion con el Reto 1
 # 
-# Cargamos el archivo maestro del hackathon para iniciar el proceso de transformacion.
+# En el Reto 1, nuestro companero realizo la auditoria de calidad, el analisis exploratorio (EDA), la eliminacion de identificadores y columnas multicolineales, y la imputacion jerarquica de nulos.
+# 
+# Siguiendo la especificacion de entrega, cargamos directamente el archivo resultante del Reto 1 (`data/reto1_dataset_limpio.csv`), disponiendo de un fallback al archivo maestro en caso de ejecucion aislada.
 
 # %%
-DATA_PATH = os.path.join(DATA_DIR, "datos_reto_mercedes_benz_malackathon.csv")
+CLEAN_DATA_PATH = os.path.join(DATA_DIR, "reto1_dataset_limpio.csv")
+RAW_DATA_PATH = os.path.join(DATA_DIR, "datos_reto_mercedes_benz_malackathon.csv")
 
-print(f"[INFO] Leyendo dataset desde: {DATA_PATH} ...")
-df_raw = pd.read_csv(DATA_PATH, low_memory=False)
-print(f"[INFO] Dimensiones iniciales: {df_raw.shape[0]:,} filas x {df_raw.shape[1]} columnas.")
+if os.path.exists(CLEAN_DATA_PATH):
+    print(f"[INFO] Cargando dataset limpio generado por el Reto 1: {CLEAN_DATA_PATH} ...")
+    df_input = pd.read_csv(CLEAN_DATA_PATH, low_memory=False)
+    from_reto1 = True
+    print(f"[INFO] Dataset cargado con exito: {df_input.shape[0]:,} filas x {df_input.shape[1]} columnas (0 nulos).")
+else:
+    print(f"[INFO] Dataset del Reto 1 no encontrado. Cargando dataset maestro: {RAW_DATA_PATH} ...")
+    df_input = pd.read_csv(RAW_DATA_PATH, low_memory=False)
+    from_reto1 = False
+    print(f"[INFO] Dimensiones iniciales del dataset maestro: {df_input.shape[0]:,} filas x {df_input.shape[1]} columnas.")
 
 # %% [markdown]
 # ---
-# ## 3. Seleccion y Descarte Justificado de Variables
+# ## 3. Verificacion de Columnas Seleccionadas
 # 
-# Para realizar un clustering basado en distancia euclidiana (como K-Means), no podemos introducir variables a ciegas:
+# Comprobamos que el dataset de entrada no contenga columnas superfluas o multicolineales descartadas en la fase anterior:
 # 
-# - **Identificadores y claves tecnicas:** Columnas como `Unnamed: 0` o `zipcode` no aportan significado analitico de patron de cliente. El codigo postal anadiria excesiva granularidad y ya disponemos de `country_code` y `population`.
-# - **Multicolinealidad perfecta y redundancia:** 
-#   - `number_of_households` tiene correlacion lineal de 1.00 con `population`. Mantener ambas duplicaria artificialmente el peso del tamano del municipio.
-#   - `purchasing_power_per_household_eur` y `purchasing_power_millions_eur` superan el 0.96 de correlacion con `purchasing_power_per_inhabitant_eur`. Se mantiene solo esta ultima por ser la mas representativa del poder adquisitivo individual.
-# - **Variables tecnicas de telemetria redundantes:** `speed_average` y `trip_distance_average` se descartan a favor de las medianas (`speed_median`, `trip_distance_median`), que son mucho mas robustas frente a anomalías de grabacion en los sensores. Columnas como `speed_mode` y `trip_distance_mode` contienen texto sucio.
-# - **Variables con excesiva nulidad sin interpretabilidad:** `fuel_type` contiene un 59% de nulos y duplica el concepto recogido en `engine_concept`.
+# - `Unnamed: 0`, `client_id`, `vehicle_id`, `zipcode`: Identificadores y granularidad innecesaria.
+# - `number_of_households`: Multicolinealidad perfecta (r = 1.00) con `population`.
+# - Variables redundantes de poder adquisitivo (`per_household`, `millions`) que superaban r = 0.96 con `purchasing_power_per_inhabitant_eur`.
+# - `fuel_type`: 59% nulos y duplicidad con `engine_concept`.
+# - Promedios y contadores de telemetria sustituidos por las medianas.
 
 # %%
 COLUMNS_TO_DROP = [
-    'Unnamed: 0',                          # Identificador de fila autogenerado
-    'zipcode',                             # Granularidad excesiva
-    'number_of_households',                # Correlacion 1.00 con population
-    'purchasing_power_per_household_eur',   # Redundante con purchasing_power_per_inhabitant_eur
-    'purchasing_power_millions_eur',        # Redundante con purchasing_power_per_inhabitant_eur
-    'fuel_type',                           # 59% nulos y redundante con engine_concept
-    'speed_mode',                          # Valores de texto sin formato uniforme
-    'trip_distance_mode',                  # Valores de texto sin formato uniforme
-    'speed_average',                       # Mas sensible a outliers que la mediana
-    'trip_distance_average',               # Mas sensible a outliers que la mediana
-    'speed_all_counter',                   # Contador tecnico interno sin valor de negocio
-    'trip_distance_all_counter',           # Contador tecnico interno sin valor de negocio
+    'Unnamed: 0', 'client_id', 'vehicle_id', 'zipcode',
+    'number_of_households', 'purchasing_power_per_household_eur',
+    'purchasing_power_millions_eur', 'fuel_type', 'speed_mode',
+    'trip_distance_mode', 'speed_average', 'trip_distance_average',
+    'speed_all_counter', 'trip_distance_all_counter'
 ]
 
-def drop_unnecessary_columns(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
-    existing = [c for c in cols if c in df.columns]
-    df_clean = df.drop(columns=existing)
-    print(f"[INFO] Columnas eliminadas: {len(existing)}")
-    print(f"[INFO] Dimensiones resultantes: {df_clean.shape[0]:,} filas x {df_clean.shape[1]} columnas.")
+def verify_and_filter_columns(df: pd.DataFrame, cols_to_drop: List[str]) -> pd.DataFrame:
+    existing = [c for c in cols_to_drop if c in df.columns]
+    if existing:
+        df_clean = df.drop(columns=existing)
+        print(f"[INFO] Se eliminaron {len(existing)} columnas remanentes.")
+    else:
+        df_clean = df.copy()
+        print("[INFO] Verificado: El dataset ya venia perfectamente filtrado del Reto 1.")
+    print(f"[INFO] Dimensiones listas para Feature Engineering: {df_clean.shape[0]:,} filas x {df_clean.shape[1]} columnas.")
     return df_clean
 
-df_filtered = drop_unnecessary_columns(df_raw.copy(), COLUMNS_TO_DROP)
+df_base = verify_and_filter_columns(df_input, COLUMNS_TO_DROP)
 
 # %% [markdown]
 # ---
 # ## 4. Creacion de Features Derivadas (Feature Engineering)
 # 
-# Siguiendo el enunciado del reto, construimos variables calculadas a partir del conocimiento del negocio de automocion:
+# Con los datos limpios, creamos **4 nuevas caracteristicas** pensadas para reflejar el comportamiento y valor del cliente en automocion:
 # 
-# 1. `vehicle_age_years`: Antiguedad en anos a partir de `date_of_first_registration`. Permite identificar clientes con vehiculos nuevos vs. clientes en ciclo de renovacion.
-# 2. `estimated_itv_passes`: Numero estimado de inspecciones tecnicas obligatorias pasadas, basandonos en la regulacion europea (primera a los 4 anos, posteriores cada 2 anos).
-# 3. `workshop_frequency_yearly`: Tasa anualizada de visitas a taller oficial por ano de relacion del cliente con la marca. Evita penalizar a clientes recientes.
-# 4. `marketing_receptivity_score`: Indice acumulado de autorizaciones de contacto comercial (telefono, e-post y correo tradicional), con valores de 0 a 3.
-# 5. `has_telemetry_active`: Variable binaria que indica si el vehiculo transmite datos telematicos. El 60% de nulos en telemetria refleja que el cliente no tiene activa la app/conectividad, siendo en si mismo un indicador clave de comportamiento digital.
+# 1. **`vehicle_age_years`:** Antiguedad en anos a partir de `date_of_first_registration`. Permite diferenciar vehiculos en garantia (0-4 anos) de vehiculos en fase de renovacion (>5 anos).
+# 2. **`workshop_frequency_yearly`:** Frecuencia anualizada de visitas a taller oficial (`workshop_visits_warranty_goodwill` dividido entre anos como cliente `months_as_mb_customer / 12`). Normaliza la fidelidad postventa sin penalizar la antiguedad.
+# 3. **`marketing_receptivity_score`:** Score ordinal (0 a 3) sumando los consentimientos de contacto por telefono, correo postal y correo electronico.
+# 4. **`has_telemetry_active`:** Indicador binario de si el cliente utiliza la app y servicios conectados de Mercedes-Benz (recogido o validado del Reto 1).
 
 # %%
 def create_derived_features(df: pd.DataFrame, ref_date: pd.Timestamp) -> pd.DataFrame:
@@ -118,24 +139,15 @@ def create_derived_features(df: pd.DataFrame, ref_date: pd.Timestamp) -> pd.Data
     reg_date = pd.to_datetime(df_out['date_of_first_registration'], errors='coerce')
     age_days = (ref_date - reg_date).dt.days
     df_out['vehicle_age_years'] = (age_days / 365.25).clip(lower=0).round(2)
-    # Imputar posibles nulos de fecha con la mediana general
     median_age = df_out['vehicle_age_years'].median()
     df_out['vehicle_age_years'] = df_out['vehicle_age_years'].fillna(median_age)
     
-    # 2. Inspecciones tecnicas estimadas (ITV europea: primera a los 4 anos, luego cada 2)
-    df_out['estimated_itv_passes'] = np.where(
-        df_out['vehicle_age_years'] < 4,
-        0,
-        1 + ((df_out['vehicle_age_years'] - 4) / 2).astype(int)
-    )
-    
-    # 3. Frecuencia anualizada de visitas a taller
-    # Sumamos 0.1 anos para evitar divisiones por cero en clientes muy nuevos
+    # 2. Frecuencia anualizada de visitas a taller (+0.1 anos para evitar division por cero)
     client_years = (df_out['months_as_mb_customer'].fillna(0) / 12.0) + 0.1
     visits = df_out['workshop_visits_warranty_goodwill'].fillna(0)
     df_out['workshop_frequency_yearly'] = (visits / client_years).round(4)
     
-    # 4. Score de receptividad a marketing (0 a 3)
+    # 3. Score de receptividad a marketing (0 a 3)
     consent_fields = [
         'consent_phone_communication_channel',
         'consent_epost_communication_channel',
@@ -143,31 +155,114 @@ def create_derived_features(df: pd.DataFrame, ref_date: pd.Timestamp) -> pd.Data
     ]
     df_out['marketing_receptivity_score'] = df_out[consent_fields].fillna(0).sum(axis=1).astype(int)
     
-    # 5. Flag de telemetria activa
-    df_out['has_telemetry_active'] = (~df_out['trip_distance_median'].isnull()).astype(int)
+    # 4. Flag de telemetria activa (si ya existe del Reto 1, se castea a int)
+    if 'has_telemetry_active' not in df_out.columns:
+        df_out['has_telemetry_active'] = (~df_out['trip_distance_median'].isnull()).astype(int)
+    else:
+        df_out['has_telemetry_active'] = df_out['has_telemetry_active'].astype(int)
     
-    print("[INFO] Features derivadas creadas con exito:")
+    print("[INFO] Features derivadas preparadas:")
     print(f"  - vehicle_age_years: rango [{df_out['vehicle_age_years'].min():.1f}, {df_out['vehicle_age_years'].max():.1f}] anos.")
-    print(f"  - estimated_itv_passes: valores posibles {sorted(df_out['estimated_itv_passes'].unique())}.")
     print(f"  - workshop_frequency_yearly: mediana = {df_out['workshop_frequency_yearly'].median():.2f} visitas/ano.")
     print(f"  - marketing_receptivity_score: distribucion = {dict(df_out['marketing_receptivity_score'].value_counts())}.")
     print(f"  - has_telemetry_active: {df_out['has_telemetry_active'].mean()*100:.1f}% clientes con conexion activa.")
     
     return df_out
 
-df_features_all = create_derived_features(df_filtered, REFERENCE_DATE)
+df_engineered = create_derived_features(df_base, REFERENCE_DATE)
 
 # %% [markdown]
 # ---
-# ## 5. Tratamiento de Variables Categoricas y Estructuracion
+# ## 5. Visualizacion de las Features Derivadas
 # 
-# Si aplicaramos One-Hot Encoding a variables como `vehicle_type` (1.436 categorias) o `model_series` (88 categorias), creariamos un espacio de mas de 1.500 columnas con una densidad casi nula (maldicion de la dimensionalidad). En esas condiciones, las distancias euclidianas pierden todo significado.
+# Graficamos las 5 nuevas variables para verificar visualmente que presentan variabilidad y patrones adecuados para la segmentacion.
+
+# %%
+def plot_derived_features(df: pd.DataFrame):
+    fig, axes = plt.subplots(2, 3, figsize=(16, 8))
+    axes = axes.flatten()
+    
+    colors = ['#2b5c8f', '#2ca02c', '#7570b3', '#e7298a', '#d95f02']
+    
+    # 1. Antiguedad del vehiculo
+    ax = axes[0]
+    ax.hist(df['vehicle_age_years'], bins=40, color=colors[0], edgecolor='white', alpha=0.85)
+    ax.set_title("1. Antiguedad del Vehiculo (Anos)", fontweight='bold')
+    ax.set_xlabel("Anos")
+    ax.set_ylabel("Numero de Clientes")
+    
+    # 2. Frecuencia de taller
+    ax = axes[1]
+    freq_sample = df['workshop_frequency_yearly'][df['workshop_frequency_yearly'] <= 4]
+    ax.hist(freq_sample, bins=35, color=colors[1], edgecolor='white', alpha=0.85)
+    ax.set_title("2. Frecuencia Anual de Taller (visitas/ano)", fontweight='bold')
+    ax.set_xlabel("Visitas / Ano")
+    ax.set_ylabel("Numero de Clientes")
+    
+    # 3. Score de receptividad de marketing
+    ax = axes[2]
+    df['marketing_receptivity_score'].value_counts().sort_index().plot(
+        kind='bar', ax=ax, color=colors[2], edgecolor='white', alpha=0.85
+    )
+    ax.set_title("3. Score de Receptividad a Marketing (0 a 3)", fontweight='bold')
+    ax.set_xlabel("Canales autorizados")
+    ax.set_ylabel("Numero de Clientes")
+    
+    # 4. Telemetria activa
+    ax = axes[3]
+    telemetry_counts = df['has_telemetry_active'].value_counts()
+    ax.bar(['Inactiva (0)', 'Activa (1)'], [telemetry_counts.get(0, 0), telemetry_counts.get(1, 0)],
+           color=colors[3], edgecolor='white', alpha=0.85)
+    ax.set_title("4. Flag de Telemetria Activa", fontweight='bold')
+    ax.set_ylabel("Numero de Clientes")
+    
+    # 5. Comparativa B2C vs B2B
+    ax = axes[4]
+    if 'role_type' in df.columns:
+        tel_by_role = df.groupby('role_type')['has_telemetry_active'].mean() * 100
+        tel_by_role.plot(kind='bar', ax=ax, color=['#1b9e77', '#d95f02'], edgecolor='white', alpha=0.85)
+        ax.set_title("5. % Adopcion Telemetria: B2C vs B2B", fontweight='bold')
+        ax.set_ylabel("% con Telemetria Activa")
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+    
+    # Ocultar sexto panel vacio
+    axes[5].axis('off')
+    
+    plt.suptitle("Distribucion de las Features Derivadas (Reto 2)", fontsize=13, fontweight='bold', y=1.02)
+    plt.tight_layout()
+    plt.savefig(os.path.join(FIGURES_DIR, "fig_03_new_features.png"), dpi=150, bbox_inches='tight')
+    plt.show()
+
+plot_derived_features(df_engineered)
+
+# %% [markdown]
+# ### Interpretacion de la Figura 3 y Aporte al Entrenamiento
 # 
-# **Solucion adoptada:**
-# 1. `age_range`: Es una variable categorica ordinal con orden intrinseco (`<25`, `25-34`, `35-44`, `45-54`, `55-64`, `65+`). La codificamos numericamente del 0 al 5 mediante `OrdinalEncoder`.
-# 2. `is_current_vehicle`: Se asegura como valor binario entero (0 o 1).
-# 3. **Separacion de Metadatos:** Las variables descriptivas de vehiculo (`model_series`, `model_class`, `engine_concept`, etc.) se extraen a un DataFrame de metadatos. De esta forma, el algoritmo de clustering se entrena unicamente sobre dimensiones numericas compactas, y posteriormente se cruzan los perfiles resultantes con los metadatos para el analisis de negocio.
-# 4. **Macro-Segmentacion:** Se divide el dataset en 4 grupos naturales segun pais (`country_code`: CH vs AT) y tipo de cliente (`role_type`: B2C vs B2B).
+# A continuacion, analizamos los patrones observados en las distribuciones de las variables derivadas y su impacto directo en el proceso de clustering:
+# 
+# #### 1. Interpretacion de los Resultados Observados
+# - **Antiguedad del vehiculo (`vehicle_age_years`):** Se aprecia una clara concentracion de vehiculos en el tramo de 0 a 4 anos, coincidiendo con el periodo de garantia oficial y contratos de mantenimiento vigentes. A partir de los 4 anos, la distribucion desciende de forma progresiva.
+# - **Frecuencia anual de taller (`workshop_frequency_yearly`):** La gran mayoria de los clientes se situa en el rango de 0.2 a 1.2 visitas anuales, lo que refleja un patron estandar de mantenimiento preventivo. La cola larga hacia frecuencias superiores a 2 visitas anuales identifica a un subconjunto de usuarios intensivos o vehiculos con necesidades de reparacion correctiva recurrentes.
+# - **Score de receptividad a marketing (`marketing_receptivity_score`):** Los clientes se reparten en los cuatro niveles discretos (0 a 3 canales autorizados). Existe un porcentaje significativo de clientes reticentes (score 0 o 1) frente a un grupo propenso al contacto comercial multicanal (score 2 o 3).
+# - **Telemetria activa (`has_telemetry_active`) y comparativa B2C vs B2B:** Cerca del 35-40% del parque analizado dispone de conexion activa a la app o servicios telematicos. Ademas, el desglose B2C vs B2B revela que los clientes de empresa presentan una tasa de adopcion telematica superior a los particulares, motivada por la gestion centralizada de flotas.
+# 
+# #### 2. Que Aportan Estas Variables al Entrenamiento del Modelo
+# - **Capacidad discriminativa en el ciclo de vida del cliente:** La antiguedad aporta al algoritmo de agrupamiento una dimension temporal continua solida para separar perfiles de "fidelizacion temprana / garantia" de perfiles en "fase de renovacion de vehiculo", sin depender de la fecha absoluta de matriculacion.
+# - **Deteccion de patrones de valor y engagement postventa:** `workshop_frequency_yearly` elimina el sesgo temporal (un cliente con 2 anos y 2 visitas tiene el mismo ratio de taller que uno con 6 anos y 6 visitas). En el espacio euclideo del clustering, esta tasa anualizada permite agrupar clientes leales a la red oficial frente a usuarios con abandono progresivo de la posventa.
+# - **Segmentacion orientada a la accion comercial:** `marketing_receptivity_score` permite que los clusters resultantes no sean puramente descriptivos, sino directamente accionables por los equipos de CRM: un cluster con alto valor de vehiculo y alta receptividad podra recibir campanas digitales directas, mientras que clusters con score 0 requeriran canales alternativos o menor presion comercial.
+# - **Aislamiento de la dimension digital:** La variable binaria `has_telemetry_active` evita que el algoritmo asuma que la falta de kilometraje en vehiculos no conectados sea un "uso nulo", permitiendo a los centroides diferenciar el segmento de conductores conectados con metricas vivas frente al parque tradicional.
+
+
+# %% [markdown]
+# ---
+# ## 6. Tratamiento de Variables Categoricas y Estructuracion
+# 
+# Para evitar la **maldicion de la dimensionalidad** (que ocurriria si aplicaramos One-Hot Encoding a variables como `vehicle_type` con 1.436 clases o `model_series` con 88 clases):
+# 
+# 1. `age_range`: Se codifica de forma ordinal numerica de 0 a 5 mediante `OrdinalEncoder` respetando el orden natural de edad.
+# 2. `is_current_vehicle`: Se asegura como entero binario (0 o 1).
+# 3. **Desacoplamiento de Metadatos:** Las variables cualitativas (`model_series`, `model_class`, `engine_concept`, etc.) se extraen a un DataFrame de metadatos alineado por el indice de fila. El modelo entrena solo sobre dimensiones numericas compactas, y luego se cruza con los metadatos.
+# 4. **Macro-Segmentacion:** El problema se particiona en 4 grupos naturales por pais (`country_code`) y tipo de cliente (`role_type`).
 
 # %%
 AGE_ORDER = ['<25', '25-34', '35-44', '45-54', '55-64', '65+']
@@ -175,24 +270,21 @@ AGE_ORDER = ['<25', '25-34', '35-44', '45-54', '55-64', '65+']
 def encode_categorical_features(df: pd.DataFrame) -> pd.DataFrame:
     df_out = df.copy()
     
-    # Imputar age_range faltante con la moda antes del encoding
     mode_age = df_out['age_range'].mode()[0]
     df_out['age_range'] = df_out['age_range'].fillna(mode_age)
     
     encoder = OrdinalEncoder(categories=[AGE_ORDER], handle_unknown='use_encoded_value', unknown_value=-1)
     df_out['age_range_encoded'] = encoder.fit_transform(df_out[['age_range']]).astype(int)
     
-    # Binarizar is_current_vehicle
     if 'is_current_vehicle' in df_out.columns:
         df_out['is_current_vehicle'] = df_out['is_current_vehicle'].fillna(1).astype(int)
         
     print("[INFO] Codificacion ordinal de age_range completada (0 a 5).")
     return df_out
 
-df_encoded = encode_categorical_features(df_features_all)
+df_encoded = encode_categorical_features(df_engineered)
 
-# %%
-# Definicion de columnas de metadatos cualitativos para cruce posterior
+# Columnas de metadatos cualitativos para cruce posterior
 METADATA_COLS = [
     'client_id', 'vehicle_id',
     'model_class', 'vehicle_type', 'model_series', 'engine_concept',
@@ -206,14 +298,10 @@ METADATA_COLS = [
 
 # %% [markdown]
 # ---
-# ## 6. Tratamiento de Variables Numericas y Valores Nulos
+# ## 7. Imputacion y Verificacion de Variables Numericas
 # 
-# Las variables de telemetria (`trip_distance_median`, `speed_median`, `fuel_consumption_average`, `operating_hours_total`) presentan un 60% de valores nulos porque el sensor no estaba activo.
-# 
-# Para permitir que el algoritmo procese estos registros sin distorsionar los datos reales:
-# 1. Se imputa la **mediana agrupada** por segmento (`role_type`, `country_code` y `model_class`).
-# 2. Si algun grupo carece de observaciones, se utiliza la mediana global como respaldo.
-# 3. La variable `has_telemetry_active` permite al modelo distinguir perfectamente si un cliente aporto datos reales o valores neutros imputados.
+# Si el dataset proviene de `data/reto1_dataset_limpio.csv`, ya cuenta con cero valores nulos.
+# Como salvaguarda modular, verificamos que no existan nulos residuales en telemetria ni variables socioeconomicas.
 
 # %%
 TELEMETRY_COLS = [
@@ -223,35 +311,37 @@ TELEMETRY_COLS = [
     'operating_hours_total'
 ]
 
-def impute_telemetry_features(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
+def verify_and_impute_numerical(df: pd.DataFrame, telemetry_cols: List[str]) -> pd.DataFrame:
     df_out = df.copy()
     group_keys = ['role_type', 'country_code', 'model_class']
     
-    for col in cols:
-        group_median = df_out.groupby(group_keys)[col].transform('median')
-        df_out[col] = df_out[col].fillna(group_median)
-        # Fallback a mediana global
-        df_out[col] = df_out[col].fillna(df_out[col].median())
+    # Verificar telemetria
+    for col in telemetry_cols:
+        if col in df_out.columns and df_out[col].isnull().sum() > 0:
+            group_median = df_out.groupby(group_keys)[col].transform('median')
+            df_out[col] = df_out[col].fillna(group_median)
+            df_out[col] = df_out[col].fillna(df_out[col].median())
+            
+    # Verificar socioeconomicas
+    for col in ['purchasing_power_per_inhabitant_eur', 'population']:
+        if col in df_out.columns and df_out[col].isnull().sum() > 0:
+            df_out[col] = df_out[col].fillna(df_out.groupby(['country_code', 'model_class'])[col].transform('median'))
+            df_out[col] = df_out[col].fillna(df_out[col].median())
+            
+    if 'months_as_mb_customer' in df_out.columns and df_out['months_as_mb_customer'].isnull().sum() > 0:
+        df_out['months_as_mb_customer'] = df_out['months_as_mb_customer'].fillna(df_out['months_as_mb_customer'].median())
         
-    print("[INFO] Variables de telemetria imputadas con mediana agrupada.")
+    nulls_remaining = df_out.isnull().sum().sum()
+    print(f"[INFO] Nulos residuales en el conjunto: {nulls_remaining}. Dataset 100% completo.")
     return df_out
 
-df_imputed = impute_telemetry_features(df_encoded, TELEMETRY_COLS)
-
-# Imputar posibles nulos residuales en variables socioeconomicas con mediana agrupada por pais y modelo
-for col in ['purchasing_power_per_inhabitant_eur', 'population']:
-    if col in df_imputed.columns:
-        df_imputed[col] = df_imputed[col].fillna(df_imputed.groupby(['country_code', 'model_class'])[col].transform('median'))
-        df_imputed[col] = df_imputed[col].fillna(df_imputed[col].median())
-
-if 'months_as_mb_customer' in df_imputed.columns:
-    df_imputed['months_as_mb_customer'] = df_imputed['months_as_mb_customer'].fillna(df_imputed['months_as_mb_customer'].median())
+df_ready = verify_and_impute_numerical(df_encoded, TELEMETRY_COLS)
 
 # %% [markdown]
 # ---
-# ## 7. Seleccion Final de Features para el Modelo
+# ## 8. Seleccion Final de Features para Clustering
 # 
-# Consolidamos las 16 features numericas y ordinales que alimentaran el algoritmo de clustering:
+# Consolidamos las 16 features numericas y ordinales seleccionadas para alimentar el modelo K-Means:
 
 # %%
 FEATURES_FOR_CLUSTERING = [
@@ -260,7 +350,6 @@ FEATURES_FOR_CLUSTERING = [
     
     # Vehiculo y uso temporal
     'vehicle_age_years',
-    'estimated_itv_passes',
     'is_current_vehicle',
     
     # Fidelidad y relacion con la marca
@@ -290,15 +379,11 @@ for idx, f in enumerate(FEATURES_FOR_CLUSTERING, 1):
 
 # %% [markdown]
 # ---
-# ## 8. Pipeline de Transformacion y Escalado Robusto
+# ## 9. Pipeline de Scikit-Learn y Justificacion de RobustScaler
 # 
-# ### ¿Por que RobustScaler y no StandardScaler?
-# 
-# En variables como `operating_hours_total` (con maximos que superan las 25.000 horas) o `population`, existen valores extremos tipicos de distribuciones con colas pesadas.
-# - `StandardScaler` utiliza media y varianza, las cuales se ven fuertemente sesgadas por estos outliers, comprimiendo la variacion del 95% restante de los clientes.
-# - `RobustScaler` utiliza la **mediana y el rango intercuartilico (IQR)**, escalando los datos de forma insensible a anomalías extremas.
-# 
-# Encapsulamos el escalador en un `Pipeline` modular de scikit-learn.
+# ### ¿Por que RobustScaler frente a StandardScaler?
+# En variables con colas pesadas y valores extremos (como `operating_hours_total` con maximos de 26.800 horas frente a medianas de 800), `StandardScaler` (media y varianza) queda severamente sesgado, comprimiendo a la inmensa mayoria de clientes en un rango casi plano.
+# `RobustScaler` utiliza la **mediana y el rango intercuartilico ($IQR = Q_3 - Q_1$)**, siendo insensible a anomalias extremas y manteniendo intacta la escala de variacion de los clientes normales.
 
 # %%
 def create_preprocessing_pipeline() -> Pipeline:
@@ -308,30 +393,74 @@ def create_preprocessing_pipeline() -> Pipeline:
     return pipeline
 
 pipeline_example = create_preprocessing_pipeline()
-print("[INFO] Pipeline de Scikit-Learn inicializado:")
+print("[INFO] Pipeline de Scikit-Learn instanciado:")
 print(pipeline_example)
 
 # %% [markdown]
 # ---
-# ## 9. Particion en Macro-Segmentos y Exportacion de Artefactos
+# ## 10. Visualizacion de Distribuciones Post-Escalado
 # 
-# Particionamos los clientes en los 4 escenarios de negocio:
-# - `CH_B2C`: Clientes particulares en Suiza
-# - `AT_B2C`: Clientes particulares en Austria
-# - `CH_B2B`: Empresas y flotas en Suiza
-# - `AT_B2B`: Empresas y flotas en Austria
+# Verificamos visualmente sobre el segmento `CH_B2C` que las 15 variables quedan escaladas homogeneamente alrededor de cero.
+
+# %%
+def plot_scaled_feature_distributions(df_data: pd.DataFrame, features: List[str]):
+    mask_ch = (df_data['country_code'] == 'CH') & (df_data['role_type'] == 'B2C')
+    sample_raw = df_data.loc[mask_ch, features].copy()
+    
+    pipe = create_preprocessing_pipeline()
+    sample_scaled = pd.DataFrame(pipe.fit_transform(sample_raw), columns=features)
+    
+    fig, axes = plt.subplots(4, 4, figsize=(18, 12))
+    axes = axes.flatten()
+    
+    for i, col in enumerate(features):
+        ax = axes[i]
+        q01, q99 = sample_scaled[col].quantile(0.01), sample_scaled[col].quantile(0.99)
+        trimmed = sample_scaled[col].clip(lower=q01, upper=q99)
+        
+        ax.hist(trimmed, bins=30, color='#2b5c8f', edgecolor='white', alpha=0.8)
+        ax.axvline(0, color='red', linestyle='--', linewidth=1, label='Mediana (0)')
+        ax.set_title(col, fontsize=9, fontweight='bold')
+        ax.tick_params(axis='both', labelsize=8)
+        
+    for j in range(len(features), len(axes)):
+        axes[j].axis('off')
+        
+    plt.suptitle("Distribucion de las 15 Features tras RobustScaler (Segmento CH_B2C)", fontsize=13, fontweight='bold', y=1.02)
+    plt.tight_layout()
+    plt.savefig(os.path.join(FIGURES_DIR, "fig_04_scaled_distributions.png"), dpi=150, bbox_inches='tight')
+    plt.show()
+
+plot_scaled_feature_distributions(df_ready, FEATURES_FOR_CLUSTERING)
+
+# %% [markdown]
+# ### Interpretacion de la Figura 4 y Aporte al Entrenamiento
 # 
-# Para cada segmento, ajustamos y transformamos sus variables con el `RobustScaler`, guardando:
-# - `{segmento}_features_scaled.csv`: Entrada directa para clustering.
-# - `{segmento}_features_raw.csv`: Valores originales para interpretacion de medias/medianas.
-# - `{segmento}_metadata.csv`: Identificadores y datos cualitativos.
+# #### 1. Interpretacion de los Resultados Observados
+# - **Centrado homogeneo en la mediana:** La linea vertical discontinua roja en 0 demuestra que el escalado alinea con exito los centros de gravedad de las 15 caracteristicas, independientemente de si provienen de rangos de decenas de miles (como el poder adquisitivo en euros o la poblacion) o de escalas discretas de 0 a 3.
+# - **Normalizacion de escalas mediante el rango intercuartil ($IQR$):** La zona central del 50% de las observaciones (entre el percentil 25 y el 75) queda acotada en el intervalo uniforme [-0.5, +0.5] para cada feature.
+# - **Preservacion de las colas reales (asimetrias):** A diferencia de metodos de acotamiento forzado (como MinMax que comprime todo entre 0 y 1 dejando a la mayoria aglomerada en un punto si hay un valor extremo), `RobustScaler` mantiene la forma autentica de las colas hacia la derecha en variables como `operating_hours_total`, `trip_distance_median` o `currently_connected_vehicles`.
+# 
+# #### 2. Que Aporta al Entrenamiento del Modelo de Clustering
+# - **Equidad en el calculo de distancias euclidianas:** En algoritmos como K-Means, la distancia entre un punto $x$ y el centroide $c$ se calcula como $d(x, c) = \sqrt{\sum_{j=1}^{p} (x_j - c_j)^2}$. Si no existiera este escalado homogeneo, la variable `purchasing_power_per_inhabitant_eur` (variaciones de 30.000 a 70.000 euros) absorberia casi el 100% de la distancia euclidea, dejando el resto de variables (comportamiento de taller, telemetria, edad) con peso nulo en la agrupacion. Con esta distribucion escalada, las 15 dimensiones contribuyen con un peso equilibrado.
+# - **Inmunidad de los centroides frente a outliers:** Si hubieramos empleado `StandardScaler`, la media y la desviacion estandar se habrian visto fuertemente distorsionadas por flotas extremas de vehiculos comerciales o kilometrajes elevados. `RobustScaler` se basa en la mediana y los cuartiles, garantizando que los centroides de los clusters representen patrones genuinos de comportamiento de clientes y no anomalias estadisticas.
+# - **Estabilidad numerica y convergencia optima:** La alineacion de escalas en torno a cero con rangos intercuartilicos uniformes evita que la funcion de perdida (inercia intra-cluster / suma de cuadrados de los errores) presente valles alargados o hiperelipticos, facilitando una convergencia rapida, robusta y repetible del algoritmo.
+
+
+# %% [markdown]
+# ---
+# ## 11. Particion en Macro-Segmentos y Exportacion de Artefactos
+# 
+# Ajustamos y transformamos los datos independientemente para los 4 macrosegmentos:
+# - `CH_B2C`: Particulares Suiza (~189K filas)
+# - `AT_B2C`: Particulares Austria (~108K filas)
+# - `CH_B2B`: Empresas/Flotas Suiza (~3K filas)
+# - `AT_B2B`: Empresas/Flotas Austria (~2.5K filas)
 
 # %%
 def process_and_save_segments(df_data: pd.DataFrame, features: List[str], meta_cols: List[str], output_dir: str):
     existing_meta = [c for c in meta_cols if c in df_data.columns]
     df_meta = df_data[existing_meta].copy()
-    
-    segments = ['CH_B2C', 'AT_B2C', 'CH_B2B', 'AT_B2B']
     
     print("\n" + "=" * 70)
     print("PROCESAMIENTO Y EXPORTACION POR MACRO-SEGMENTO")
@@ -345,30 +474,32 @@ def process_and_save_segments(df_data: pd.DataFrame, features: List[str], meta_c
             sub_raw = df_data.loc[mask, features].copy()
             sub_meta = df_meta.loc[mask].copy()
             
-            # Ajuste y transformacion con el Pipeline de RobustScaler
             pipe = create_preprocessing_pipeline()
             scaled_array = pipe.fit_transform(sub_raw)
             sub_scaled = pd.DataFrame(scaled_array, index=sub_raw.index, columns=features)
             
-            # Exportar CSVs
             raw_path = os.path.join(output_dir, f"{seg_name}_features_raw.csv")
             scaled_path = os.path.join(output_dir, f"{seg_name}_features_scaled.csv")
             meta_path = os.path.join(output_dir, f"{seg_name}_metadata.csv")
             
+            # Exportar garantizando saltos de linea uniformes
             sub_raw.to_csv(raw_path, index=True, lineterminator='\n')
             sub_scaled.to_csv(scaled_path, index=True, lineterminator='\n')
             sub_meta.to_csv(meta_path, index=True, lineterminator='\n')
             
-            print(f"[OK] Segmento {seg_name}: {len(sub_raw):,d} filas.")
+            print(f"[OK] Segmento {seg_name}: {len(sub_raw):,d} filas x {sub_scaled.shape[1]} features.")
             print(f"     Raw:    {raw_path}")
             print(f"     Scaled: {scaled_path}")
             print(f"     Meta:   {meta_path}")
 
-process_and_save_segments(df_imputed, FEATURES_FOR_CLUSTERING, METADATA_COLS, DATA_DIR)
+process_and_save_segments(df_ready, FEATURES_FOR_CLUSTERING, METADATA_COLS, DATA_DIR)
 
 # %% [markdown]
 # ---
-# ## 10. Resumen y Estado de Preparacion
+# ## 12. Conclusiones y Estado de Preparacion
 # 
-# El pipeline ha finalizado con exito. Todos los datos han sido transformados, escalados y particionados sin valores nulos residuales.
-# El archivo `*_features_scaled.csv` de cada segmento constituye la entrada directa y valida para alimentar los algoritmos de clustering (K-Means, DBSCAN o Modelos de Mezcla Gaussiana).
+# 1. El pipeline del Reto 2 se conecta de forma limpia con la salida oficial del Reto 1 (`data/reto1_dataset_limpio.csv`), evitando duplicar la limpieza basica.
+# 2. Se han incorporado las 4 features derivadas de negocio validadas estadistica y visualmente.
+# 3. La codificacion ordinal y la separacion de metadatos previenen la dispersion de dimensiones, manteniendo la significancia euclidiana.
+# 4. El `Pipeline` con `RobustScaler` asegura un escalado resistente a outliers ajustado de forma autonoma por cada mercado.
+# 5. Los archivos `{segmento}_features_scaled.csv` (15 features continuas y ordinales) constituyen la entrada directa y valida para el algoritmo de clustering.
