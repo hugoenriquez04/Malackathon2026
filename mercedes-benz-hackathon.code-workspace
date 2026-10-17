@@ -26,7 +26,6 @@
     }
   ],
   "settings": {
-    "python.defaultInterpreterPath": "C:\\Users\\javic\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
     "python.analysis.autoImportCompletions": true,
     "files.autoSave": "afterDelay",
     "editor.formatOnSave": true,

@@ -10,6 +10,7 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 ENV/
 env.bak/
 venv.bak/
@@ -17,6 +18,15 @@ venv.bak/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 */.ipynb_checkpoints/*
+
+# Scratch and temporary investigation scripts
+scratch/
+*.log
+*.tmp
+
+# Environment variables & secrets
+.env
+.env.*
 
 # IDE and OS files
 .vscode/
