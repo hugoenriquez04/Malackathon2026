@@ -19,6 +19,10 @@ venv.bak/
 .ipynb_checkpoints/
 */.ipynb_checkpoints/*
 
+# Datasets and heavy/confidential files
+data/
+*.csv
+
 # Scratch and temporary investigation scripts
 scratch/
 *.log

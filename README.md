@@ -10,7 +10,7 @@ Repositorio oficial del proyecto **Mercedes-Benz Hackathon (Malackathon 2026)**.
 ```
 Malackathon/
 │
-├── 📓 notebooks/                               ← Suite completa de 7 Notebooks Jupyter
+├── 📓 notebooks/                               ← Suite completa de 7 Notebooks Jupyter (Pre-ejecutados)
 │   ├── 01_EDA.ipynb                            (Reto 1: Diagnóstico de calidad, imputación y limpieza)
 │   ├── 02_Feature_Engineering.ipynb            (Reto 2: Creación de KPIs, particionado y escalado)
 │   ├── 03_KMeans.ipynb                         (Reto 3: Segmentación base y selección óptima de K)
@@ -37,16 +37,25 @@ Malackathon/
 │   ├── fig_05_correlation_matrix_scaled.png
 │   └── fig_06_correlation_matrix_final_14.png
 │
-├── 💾 data/                                    ← Datasets brutos y procesados (*.csv)
-│   ├── datos_reto_mercedes_benz_malackathon.csv (Dataset maestro)
-│   ├── reto1_dataset_limpio.csv                 (Dataset limpio tras Reto 1)
-│   └── [AT|CH]_[B2B|B2C]_[raw|scaled|metadata].csv
+├── 💾 data/                                    ← Ignorado en Git por confidencialidad (ver sección Datos)
+│   └── (datos_reto_mercedes_benz_malackathon.csv y particiones)
 │
 ├── mercedes-benz-hackathon.code-workspace      ← Configuración de workspace para VS Code / Cursor
 ├── requirements.txt                            ← Dependencias del entorno de Python
-├── .gitignore                                  ← Reglas de exclusión de Git
+├── .gitignore                                  ← Reglas de exclusión de Git (incluye data/ y *.csv)
 └── README.md                                   ← Documentación principal del proyecto
 ```
+
+---
+
+## 💾 Gestión de Datos y Confidencialidad
+
+> [!NOTE]
+> **Política de Confidencialidad y Protección de Datos:**  
+> Por motivos de confidencialidad industrial de **Mercedes-Benz Group Services Madrid** y cumplimiento normativo (RGPD), los archivos CSV brutos (`data/*.csv`) **no se distribuyen públicamente en este repositorio y están excluidos en `.gitignore`**.
+
+* **Inspección sin necesidad de datos:** Todos los notebooks en `notebooks/` se encuentran **completamente pre-ejecutados** con todas sus celdas de salida, métricas estadísticas, tablas de contraste y visualizaciones embebidas, permitiendo auditar y evaluar el 100% de la metodología sin requerir la descarga de los datos brutos.
+* **Reproducción local para miembros y evaluadores:** Si dispones del dataset original proporcionado por la organización (`datos_reto_mercedes_benz_malackathon.csv`), simplemente colócalo dentro de la carpeta local `data/`. Los pipelines y notebooks lo detectarán automáticamente para su ejecución.
 
 ---
 
