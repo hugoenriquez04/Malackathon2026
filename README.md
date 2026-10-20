@@ -87,7 +87,7 @@ Malackathon/
 
 ### 1. Clonar el repositorio
 ```bash
-git clone https://github.com/javicamcor/Malackathon.git
+git clone https://github.com/hugoenriquez04/Malackathon2026.git
 cd Malackathon
 ```
 
