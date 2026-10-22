@@ -1,86 +1,84 @@
-# 🌟 Mercedes-Benz Hackathon: "Clustering the Star"
-### Pipeline Completo de Ciencia de Datos y Segmentación de Clientes
+# Mercedes-Benz Hackathon: "Clustering the Star"
 
-Repositorio oficial del proyecto **Mercedes-Benz Hackathon (Malackathon 2026)**. Contiene el pipeline íntegro de Data Science y Machine Learning para procesar, limpiar, enriquecer y segmentar la base de clientes de **Suiza (CH)** y **Austria (AT)**, tanto particulares (**B2C**) como corporativos (**B2B**), cubriendo más de **302.000 clientes**.
+Customer segmentation project developed for the **Clustering the Star** challenge by **Mercedes-Benz Group Services Madrid** during **Malackathon 2026**.
 
----
+The notebooks contain the complete workflow, from exploratory analysis and feature engineering to clustering, interpretation, dimensionality reduction, and stability analysis.
 
-## 🗂️ Estructura del Proyecto
+## Participants
 
-```
+- Javier Campos Córcoles
+- Hugo Enríquez Jiménez
+- Alberto Gallego Tamayo
+- Jose Manuel Urbano Olmo
+
+## Project Structure
+
+```text
 Malackathon/
-│
-├── 📓 notebooks/                               ← Suite completa de 7 Notebooks Jupyter (Pre-ejecutados)
-│   ├── 01_EDA.ipynb                            (Reto 1: Diagnóstico de calidad, imputación y limpieza)
-│   ├── 02_Feature_Engineering.ipynb            (Reto 2: Creación de KPIs, particionado y escalado)
-│   ├── 03_KMeans.ipynb                         (Reto 3: Segmentación base y selección óptima de K)
-│   ├── 04_Interpretacion_Segmentos.ipynb       (Reto 4: Arquetipos de clientes e hipótesis de campañas)
-│   ├── 05_Comparativa_Algoritmos.ipynb         (Reto 5: Benchmark con GMM, Agglomerative y DBSCAN)
-│   ├── 06_PCA.ipynb                            (Reto 6: Reducción dimensional y explicabilidad)
-│   └── 07_Jackknife.ipynb                      (Reto 7: Análisis de estabilidad y candidatos para piloto)
-│
-├── 🐍 scripts/                                 ← Pipelines ejecutables y utilidades auxiliares
-│   ├── Retos_1_2_EDA_FeatureEngineering.py    (Pipeline consolidado Retos 1 y 2)
-│   ├── Reto_2_Feature_Engineering.py          (Pipeline modular de ingeniería de variables)
-│   ├── execute_notebook.py                     (Runner automatizado con captura de métricas/gráficos)
-│   └── convert_to_ipynb.py                     (Conversor de scripts con celdas a .ipynb)
-│
-├── 📄 reports/                                 ← Informes ejecutivos y técnicos detallados
-│   ├── INFORME_EJECUTIVO_RETOS_1_Y_2.md
-│   └── INFORME_RETO_2_FEATURE_ENGINEERING.md
-│
-├── 📊 figures/                                 ← Gráficos y matrices generadas en alta resolución
+├── figures/                               # Generated visualisations
 │   ├── fig_01_null_heatmap.png
 │   ├── fig_02_correlation_matrix.png
 │   ├── fig_03_new_features.png
 │   ├── fig_04_scaled_distributions.png
 │   ├── fig_05_correlation_matrix_scaled.png
 │   └── fig_06_correlation_matrix_final_14.png
-│
-├── 💾 data/                                    ← Ignorado en Git por confidencialidad (ver sección Datos)
-│   └── (datos_reto_mercedes_benz_malackathon.csv y particiones)
-│
-├── mercedes-benz-hackathon.code-workspace      ← Configuración de workspace para VS Code / Cursor
-├── requirements.txt                            ← Dependencias del entorno de Python
-├── .gitignore                                  ← Reglas de exclusión de Git (incluye data/ y *.csv)
-└── README.md                                   ← Documentación principal del proyecto
+├── notebooks/                             # Analysis and modelling notebooks
+│   ├── 01_EDA.ipynb
+│   ├── 02_Feature_Engineering.ipynb
+│   ├── 03_KMeans.ipynb
+│   ├── 04_Interpretacion_Segmentos.ipynb
+│   ├── 05_Comparativa_Algoritmos.ipynb
+│   ├── 06_PCA.ipynb
+│   └── 07_Jackknife.ipynb
+├── .gitignore
+├── mercedes-benz-hackathon.code-workspace
+├── requirements.txt
+└── README.md
 ```
 
----
+## Analysis Workflow
 
-## 💾 Gestión de Datos y Confidencialidad
+The notebooks are numbered in execution order:
 
-> [!NOTE]
-> **Política de Confidencialidad y Protección de Datos:**  
-> Por motivos de confidencialidad industrial de **Mercedes-Benz Group Services Madrid** y cumplimiento normativo (RGPD), los archivos CSV brutos (`data/*.csv`) **no se distribuyen públicamente en este repositorio y están excluidos en `.gitignore`**.
+1. **Exploratory Analysis (`01_EDA.ipynb`)**
+   Assesses quality, missing values, distributions, correlations, and redundant variables.
+2. **Feature Engineering (`02_Feature_Engineering.ipynb`)**
+   Creates business-oriented KPIs, prepares the CH/AT and B2C/B2B segments, and scales the modelling features.
+3. **K-Means Clustering (`03_KMeans.ipynb`)**
+   Evaluates candidate values of *K* using clustering quality metrics and creates the main customer segments.
+4. **Segment Interpretation (`04_Interpretacion_Segmentos.ipynb`)**
+   Profiles the resulting customer archetypes and develops marketing campaign hypotheses.
+5. **Algorithm Comparison (`05_Comparativa_Algoritmos.ipynb`)**
+   Compares K-Means with Gaussian Mixture Models, agglomerative clustering, and DBSCAN.
+6. **Principal Component Analysis (`06_PCA.ipynb`)**
+   Reduces dimensionality and analyses the main directions of variance.
+7. **Jackknife Stability Analysis (`07_Jackknife.ipynb`)**
+   Evaluates segment stability and identifies suitable candidates for a pilot campaign.
 
-* **Inspección sin necesidad de datos:** Todos los notebooks en `notebooks/` se encuentran **completamente pre-ejecutados** con todas sus celdas de salida, métricas estadísticas, tablas de contraste y visualizaciones embebidas, permitiendo auditar y evaluar el 100% de la metodología sin requerir la descarga de los datos brutos.
-* **Reproducción local para miembros y evaluadores:** Si dispones del dataset original proporcionado por la organización (`datos_reto_mercedes_benz_malackathon.csv`), simplemente colócalo dentro de la carpeta local `data/`. Los pipelines y notebooks lo detectarán automáticamente para su ejecución.
+## Setup
 
----
+Create a Python virtual environment, activate it, and install the project dependencies:
 
-## 🚀 Resumen del Pipeline Metodológico
+```bash
+python -m venv .venv
+```
 
-1. **Reto 1 — EDA y Calidad de Datos (`01_EDA.ipynb`)**:
-   - Tratamiento integral de **2.273.248 valores nulos (0 nulos residuales)**.
-   - Eliminación de multicolinealidad perfecta y variables redundantes.
-   - Imputación jerárquica de `engine_concept` recuperando más de 36.600 registros.
-   - Creación del indicador `has_telemetry_active` para monetizar la huella digital.
+On Windows:
 
-2. **Reto 2 — Feature Engineering y Escalado (`02_Feature_Engineering.ipynb`)**:
-   - Creación de 5 KPIs de negocio (`vehicle_age_years`, `estimated_itv_passes`, `workshop_frequency_yearly`, `marketing_receptivity_score`, `is_current_vehicle`).
-   - Partición estratificada en 4 macro-segmentos (`CH_B2C`, `CH_B2B`, `AT_B2C`, `AT_B2B`).
-   - Normalización robusta no paramétrica con `RobustScaler`.
+```powershell
+.venv\Scripts\Activate.ps1
+```
 
-3. **Retos 3 & 4 — Clustering K-Means e Interpretación (`03_KMeans.ipynb`, `04_Interpretacion_Segmentos.ipynb`)**:
-   - Búsqueda sistemática de $K$ mediante Silhouette Score, Davies-Bouldin y Elbow Method.
-   - Caracterización de arquetipos de clientes y diseño de hipótesis de campañas de marketing dirigidas.
+On macOS or Linux:
 
-4. **Retos 5, 6 & 7 — Benchmark, PCA y Robustez (`05_Comparativa_Algoritmos.ipynb`, `06_PCA.ipynb`, `07_Jackknife.ipynb`)**:
-   - Comparación cruzada de algoritmos de agrupamiento (K-Means vs GMM vs Jerárquico vs DBSCAN).
-   - Análisis de componentes principales (PCA) para comprender los vectores directores de la varianza.
-   - Validación cruzada y estabilidad mediante remuestreo Jackknife para seleccionar clientes piloto.
+```bash
+source .venv/bin/activate
+```
 
----
+Install the dependencies:
 
+```bash
+python -m pip install -r requirements.txt
+```
 
+Open the project in VS Code with `mercedes-benz-hackathon.code-workspace` and run the notebooks in numerical order. The required Python packages are listed in `requirements.txt`, including pandas, NumPy, SciPy, scikit-learn, Matplotlib, Seaborn, Jupyter, and IPython Kernel.
