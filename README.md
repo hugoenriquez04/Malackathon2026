@@ -83,33 +83,4 @@ Malackathon/
 
 ---
 
-## 🛠️ Instalación y Puesta en Marcha
 
-### 1. Clonar el repositorio
-```bash
-git clone https://github.com/javicamcor/Malackathon.git
-cd Malackathon
-```
-
-### 2. Crear y activar entorno virtual
-```bash
-# Windows
-python -m venv .venv
-.venv\Scripts\activate
-
-# Linux / macOS
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-### 3. Instalar dependencias
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### 4. Ejecución de los Notebooks
-Puedes abrir el workspace en VS Code / Cursor abriendo el archivo `mercedes-benz-hackathon.code-workspace` o ejecutar los notebooks directamente:
-```bash
-jupyter notebook notebooks/
-```
